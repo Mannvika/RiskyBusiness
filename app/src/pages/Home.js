@@ -2,54 +2,101 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function Home() {
+  const [lobbyId, setLobbyId] = useState('');
   const [name, setName] = useState('');
-  const [gameID, setGameID] = useState('');
-  const [message, setMessage] = useState('');
+  const [inputLobbyId, setInputLobbyId] = useState('');
   const navigate = useNavigate();
+  const socket = new WebSocket("ws://localhost:8080/game");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  socket.onopen = () => {
+    console.log("Connected to game server");
+  };
 
+  socket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    console.log(data);
+  };
+
+  const createLobby = async () => {
     try {
-      const url = `http://localhost:8080/api/gameID/${gameID}`;
-      const response = await fetch(url);
+      const response = await fetch("http://localhost:8080/lobby/create", { method: "POST" });
+      const data = await response.json();
+      console.log("Lobby created:", data.lobbyId);
+      navigate(`/lobby/${data.lobbyId}`); // Navigate to the new lobby
+    } catch (error) {
+      console.error("Error creating lobby:", error);
+    }
+  };
 
-      if (!response.ok) {
-        throw new Error('Invalid Game ID');
+
+  const joinLobby = async () => {
+    try {
+      const lobbyIdStr = inputLobbyId.trim();
+
+      if (!lobbyIdStr) {
+        console.error("Please enter a valid lobby ID.");
+        return;
       }
 
-      const data = await response.text();
-      console.log('Server Response:', data);
+      if (!name) {
+        console.error("Player name is required to join the lobby.");
+        return;
+      }
 
-      // Save the player's name and Game ID in sessionStorage or React state
-      sessionStorage.setItem('playerName', name);
-      sessionStorage.setItem('gameID', gameID);
+      const payload = { playerName: name };
 
-      // Navigate to the Lobby Page
-      navigate('/lobby');
+      const response = await fetch(`http://localhost:8080/lobby/join/${lobbyIdStr}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        console.log("Successfully added to the lobby.");
+        navigate(`/lobby/${lobbyIdStr}`);
+      } else {
+        console.error("Failed to join the lobby.");
+      }
     } catch (err) {
-      setMessage(err.message);
+      console.error("Failed to join the lobby:", err);
     }
   };
 
   return (
-    <div>
-      <h1>Welcome to the Game</h1>
-      <form onSubmit={handleSubmit}>
-        <label>
-          Name:
-          <input type="text" value={name} placeholder="Enter your name" onChange={(e) => setName(e.target.value)} required/>
-        </label>
-        <br />
-        <label>
-          Game ID:
-          <input type="text" placeholder="Enter Game ID" value={gameID} onChange={(e) => setGameID(e.target.value)} required/>
-        </label>
-        <br />
-        <button type="submit">Join Lobby</button>
-        {message && <p style={{ color: 'red' }}>{message}</p>}
-      </form>
-    </div>
+      <div>
+        <h1>Welcome to the Game</h1>
+        <form>
+          <label>
+            Your Name:
+            <input
+                type="text"
+                value={name}
+                placeholder="Enter your name"
+                onChange={(e) => setName(e.target.value)}
+                required
+            />
+          </label>
+        </form>
+
+        <div style={{ marginTop: '20px' }}>
+          <button onClick={createLobby}>Create Lobby</button>
+        </div>
+
+        <div style={{ marginTop: '20px' }}>
+          <label>
+            Lobby ID:
+            <input
+                type="text"
+                value={inputLobbyId}
+                placeholder="Enter lobby ID"
+                onChange={(e) => setInputLobbyId(e.target.value)}
+            />
+          </label>
+          <button onClick={joinLobby} style={{ marginLeft: '10px' }}>Join Lobby</button>
+        </div>
+      </div>
   );
 }
 
