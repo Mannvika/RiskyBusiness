@@ -19,15 +19,35 @@ public class LobbyController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<Map<String, String>> createLobby() {
-        String lobbyId = lobbyService.createLobby();
-        return ResponseEntity.ok(Map.of("lobbyId", lobbyId));
+    public ResponseEntity<Map<String, String>> createLobby(@RequestBody Map<String, String> payload) {
+        String playerName = payload.get("playerName");
+        if (playerName == null || playerName.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Player name is required"));
+        }
+
+        try {
+            String lobbyId = lobbyService.createLobby();
+            boolean success = lobbyService.joinLobby(lobbyId, playerName);
+
+            if (success) {
+                return ResponseEntity.ok(Map.of("lobbyId", lobbyId));
+            } else {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "Failed to join lobby after creation."));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("error", "Lobby creation failed"));
+        }
     }
+
 
     @PostMapping("/join/{lobbyId}")
     public ResponseEntity<String> joinLobby(@PathVariable String lobbyId, @RequestBody Map<String, String> payload) {
         String playerName = payload.get("playerName");
         boolean success = lobbyService.joinLobby(lobbyId, playerName);
+
+        System.out.println(playerName + " joined lobby: " + lobbyId);
 
         if (success) {
             return ResponseEntity.ok("Player " + playerName + " added to the lobby.");

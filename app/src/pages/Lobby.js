@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { useParams } from "react-router-dom";
+import { useWebSocket } from "../WebSocketContext";
 
 function Lobby() {
   const { lobbyId } = useParams();
   const [lobbyDetails, setLobbyDetails] = useState(null);
   const [error, setError] = useState("");
+  const { socket } = useWebSocket();
 
   const fetchLobbyDetails = async () => {
     try {
@@ -24,7 +26,33 @@ function Lobby() {
 
   useEffect(() => {
     fetchLobbyDetails();
-  }, [lobbyId]);
+
+    // Send a WebSocket message to join the lobby
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(
+          JSON.stringify({ type: "JOIN_LOBBY", lobbyId })
+      );
+    }
+
+    // Listen for updates from the WebSocket
+    const handleSocketMessage = (event) => {
+      const message = JSON.parse(event.data);
+      if (message.type === "LOBBY_UPDATE" && message.lobbyId === lobbyId) {
+        setLobbyDetails(message.details);
+      }
+    };
+
+    if (socket) {
+      socket.addEventListener("message", handleSocketMessage);
+    }
+
+    // Cleanup the event listener on unmount
+    return () => {
+      if (socket) {
+        socket.removeEventListener("message", handleSocketMessage);
+      }
+    };
+  }, [lobbyId, socket]);
 
   if (error) return <p>{error}</p>;
 
@@ -34,6 +62,14 @@ function Lobby() {
         {lobbyDetails ? (
             <div>
               <p>Lobby Status: {lobbyDetails.status}</p>
+              {lobbyDetails.players && (
+                  <ul>
+                    <h2>Players:</h2>
+                    {lobbyDetails.players.map((player, index) => (
+                        <li key={index}>{player.name}</li>
+                    ))}
+                  </ul>
+              )}
             </div>
         ) : (
             <p>Loading...</p>

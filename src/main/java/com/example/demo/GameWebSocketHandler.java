@@ -17,18 +17,20 @@ public class GameWebSocketHandler extends TextWebSocketHandler
     public void afterConnectionEstablished(WebSocketSession session)
     {
         players.put(session.getId(), session);
+        System.out.println("Connected: " + session.getId());
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message)
     {
         String payload = message.getPayload();
-        System.out.println(payload);
+        System.out.println("Handle text message: " + payload);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status)
     {
         players.remove(session.getId());
+        System.out.println("Disconnected: " + session.getId());
     }
 }

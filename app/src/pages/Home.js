@@ -1,66 +1,91 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useWebSocket } from '../WebSocketContext'; // Import the custom hook
 
 function Home() {
-  const [lobbyId, setLobbyId] = useState('');
   const [name, setName] = useState('');
   const [inputLobbyId, setInputLobbyId] = useState('');
   const navigate = useNavigate();
-  const socket = new WebSocket("ws://localhost:8080/game");
-
-  socket.onopen = () => {
-    console.log("Connected to game server");
-  };
-
-  socket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    console.log(data);
-  };
+  const socketRef = useWebSocket(); // Use the custom hook to get the WebSocket reference
 
   const createLobby = async () => {
     try {
-      const response = await fetch("http://localhost:8080/lobby/create", { method: "POST" });
+      const response = await fetch('http://localhost:8080/lobby/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerName: name }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create lobby: ${response.status}`);
+      }
+
       const data = await response.json();
-      console.log("Lobby created:", data.lobbyId);
-      navigate(`/lobby/${data.lobbyId}`); // Navigate to the new lobby
-    } catch (error) {
-      console.error("Error creating lobby:", error);
+      const lobbyId = data.lobbyId;
+
+      console.log('Lobby created:', lobbyId);
+
+      if (lobbyId) {
+        const payload = { playerName: name };
+
+        const joinResponse = await fetch(`http://localhost:8080/lobby/join/${lobbyId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (joinResponse.ok) {
+          navigate(`/lobby/${lobbyId}`);
+        } else {
+          console.error('Failed to join the lobby.');
+        }
+      } else {
+        console.error('No lobby ID returned.');
+      }
+    } catch (err) {
+      console.error('Error:', err.message);
     }
   };
-
 
   const joinLobby = async () => {
     try {
       const lobbyIdStr = inputLobbyId.trim();
 
       if (!lobbyIdStr) {
-        console.error("Please enter a valid lobby ID.");
+        console.error('Please enter a valid lobby ID.');
         return;
       }
 
       if (!name) {
-        console.error("Player name is required to join the lobby.");
+        console.error('Player name is required to join the lobby.');
         return;
       }
 
       const payload = { playerName: name };
 
       const response = await fetch(`http://localhost:8080/lobby/join/${lobbyIdStr}`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
       });
 
       if (response.ok) {
-        console.log("Successfully added to the lobby.");
+        console.log('Successfully added to the lobby.');
+        // Inform the server via WebSocket
+        const socket = socketRef.current; // Access the WebSocket instance
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(
+              JSON.stringify({ type: 'JOIN_LOBBY', lobbyId: lobbyIdStr, playerName: name })
+          );
+        }
         navigate(`/lobby/${lobbyIdStr}`);
       } else {
-        console.error("Failed to join the lobby.");
+        console.error('Failed to join the lobby.');
       }
     } catch (err) {
-      console.error("Failed to join the lobby:", err);
+      console.error('Failed to join the lobby:', err);
     }
   };
 
@@ -94,7 +119,9 @@ function Home() {
                 onChange={(e) => setInputLobbyId(e.target.value)}
             />
           </label>
-          <button onClick={joinLobby} style={{ marginLeft: '10px' }}>Join Lobby</button>
+          <button onClick={joinLobby} style={{ marginLeft: '10px' }}>
+            Join Lobby
+          </button>
         </div>
       </div>
   );
