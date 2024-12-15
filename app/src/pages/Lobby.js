@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import {useNavigate, useParams} from "react-router-dom";
 import { useWebSocket } from "../WebSocketContext";
 
 function Lobby() {
@@ -9,6 +9,7 @@ function Lobby() {
   const socket = socketRef.current;
   const [lobbyDetails, setLobbyDetails] = useState("");
   const [isReady, setReady] = useState("Not Ready");
+  const navigate = useNavigate();
 
   const fetchLobbyDetails = async () => {
     try {
@@ -47,6 +48,10 @@ function Lobby() {
 
           if (message.type === "LOBBY_UPDATE" && message.lobbyId === lobbyId) {
             setLobbyDetails(message.details);
+          }
+          else if(message.type === "GAME_STARTING")
+          {
+            navigate("/game/")
           }
         } catch (e) {
           console.error("Error parsing WebSocket message:", e);

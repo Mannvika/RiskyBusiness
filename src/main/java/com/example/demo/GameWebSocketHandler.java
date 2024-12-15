@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GameWebSocketHandler extends TextWebSocketHandler {
 
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    public GameLogic gameLogic = new GameLogic(sessions);
     private final GameService gameService;
 
     public GameWebSocketHandler(GameService gameService) {
@@ -34,21 +35,28 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
         System.out.println("Received: " + type + " " + lobbyId + " " + playerId);
 
-        if ("JOIN_LOBBY".equals(type)) {
+        if ("JOIN_LOBBY".equals(type))
+        {
             Lobby lobby = gameService.getLobby(lobbyId);
-            if (lobby == null) {
+            if (lobby == null)
+            {
                 lobby = gameService.createLobby(lobbyId);
             }
             lobby.addPlayer(playerId);
-        } else if ("READY".equals(type)) {
+        }
+        else if ("READY".equals(type))
+        {
             gameService.markPlayerReady(lobbyId, playerId);
-
-            // Broadcast state updates to all players
             Lobby lobby = gameService.getLobby(lobbyId);
-            if (lobby != null) {
-                if (gameService.areAllPlayersReady(lobbyId)) {
+            if (lobby != null)
+            {
+                if (gameService.areAllPlayersReady(lobbyId))
+                {
                     broadcastToLobby(lobby, "{\"type\": \"GAME_STARTING\"}");
-                } else {
+                    // start game
+                }
+                else
+                {
                     broadcastToLobby(lobby, "{\"type\": \"WAITING\"}");
                 }
             }
