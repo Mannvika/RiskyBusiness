@@ -8,9 +8,16 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 @Configuration
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
+
+    private final GameService gameService;
+
+    public WebSocketConfig(GameService gameService) {
+        this.gameService = gameService;
+    }
+
     @Override
-    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry)
-    {
-        registry.addHandler(new GameWebSocketHandler(), "/game").setAllowedOrigins("*");
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        registry.addHandler(new GameWebSocketHandler(gameService), "/game")
+                .setAllowedOrigins("*");
     }
 }

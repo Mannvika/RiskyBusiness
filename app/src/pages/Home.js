@@ -35,14 +35,19 @@ function Home() {
         });
 
         if (joinResponse.ok) {
+          console.log('Successfully added to the lobby.');
+          // Inform the server via WebSocket
+          const socket = socketRef.current; // Access the WebSocket instance
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(
+                JSON.stringify({ type: 'JOIN_LOBBY', lobbyId: lobbyId, playerName: name })
+            );
+          }
           navigate(`/lobby/${lobbyId}`);
         } else {
           console.error('Failed to join the lobby.');
         }
-      } else {
-        console.error('No lobby ID returned.');
-      }
-    } catch (err) {
+    }} catch (err) {
       console.error('Error:', err.message);
     }
   };
