@@ -6,31 +6,37 @@ export const WebSocketProvider = ({ children }) => {
     const socketRef = useRef(null);
 
     useEffect(() => {
-        // Initialize WebSocket
-        const socket = new WebSocket("ws://localhost:8080/game");
+        // Prevent reinitialization if WebSocket already exists
+        if (!socketRef.current) {
+            const socket = new WebSocket("ws://localhost:8080/game");
 
-        socket.onopen = () => {
-            console.log("WebSocket connected");
-        };
+            socket.onopen = () => {
+                console.log("WebSocket connected");
+            };
 
-        socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            console.log("Message from server:", data);
-        };
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log("Message from server:", data);
+            };
 
-        socket.onerror = (error) => {
-            console.error("WebSocket error:", error);
-        };
+            socket.onerror = (error) => {
+                console.error("WebSocket error:", error);
+            };
 
-        socket.onclose = () => {
-            console.log("WebSocket disconnected");
-        };
+            socket.onclose = () => {
+                console.log("WebSocket disconnected");
+            };
 
-        // Store the socket reference
-        socketRef.current = socket;
+            // Store the socket reference
+            socketRef.current = socket;
+        }
 
         return () => {
-            socket.close(); // Clean up on component unmount
+            // Only close WebSocket if it's open
+            if (socketRef.current?.readyState === WebSocket.OPEN) {
+                socketRef.current.close();
+                socketRef.current = null; // Clear the reference
+            }
         };
     }, []);
 

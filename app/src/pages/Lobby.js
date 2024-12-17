@@ -51,7 +51,7 @@ function Lobby() {
           }
           else if(message.type === "GAME_STARTING")
           {
-            navigate("/game/")
+            navigate(`/game/${lobbyId}`)
           }
         } catch (e) {
           console.error("Error parsing WebSocket message:", e);

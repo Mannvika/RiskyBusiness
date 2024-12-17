@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GameWebSocketHandler extends TextWebSocketHandler {
 
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
-    public GameLogic gameLogic = new GameLogic(sessions);
     private final GameService gameService;
 
     public GameWebSocketHandler(GameService gameService) {
@@ -53,7 +52,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 if (gameService.areAllPlayersReady(lobbyId))
                 {
                     broadcastToLobby(lobby, "{\"type\": \"GAME_STARTING\"}");
-                    // start game
+                    GameLogic gameLogic = new GameLogic(lobby, this);
+                    gameLogic.startGame();
                 }
                 else
                 {
@@ -82,7 +82,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         return result;
     }
 
-    private void broadcastToLobby(Lobby lobby, String message) {
+    public void broadcastToLobby(Lobby lobby, String message) {
         lobby.getPlayers().forEach(playerId -> {
             WebSocketSession session = sessions.get(playerId);
             if (session != null && session.isOpen()) {

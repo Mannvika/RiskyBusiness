@@ -12,7 +12,7 @@ function App() {
               <Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/lobby/:lobbyId" element={<Lobby />} />
-                  <Route path="/game" element={<Game />} />
+                  <Route path="/game/:lobbyId" element={<Game />} />
               </Routes>
           </Router>
       </WebSocketProvider>
