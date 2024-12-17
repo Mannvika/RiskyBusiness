@@ -1,9 +1,13 @@
 package com.example.demo;
 
+import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 
@@ -13,6 +17,7 @@ public class GameLogic
     // Also use it to s
 
     Map<String, Player> players;
+    Set<String> readyPlayers = new HashSet<>();
     Lobby lobby;
     GameWebSocketHandler webSocketHandler;
     private final int NUM_ROUNDS = 10;
@@ -42,17 +47,55 @@ public class GameLogic
                 {
                     String chosenCard = playerEntry.getValue().chooseCard(testList);
                     String message = playerEntry.getKey() + " chosen card: " + chosenCard;
-
                     String jsonMessage = String.format(
                             "{\"type\": \"message\", \"lobbyId\": \"%s\", \"message\": \"%s\"}",
                             lobby.getId(),
                             message.replace("\"", "\\\"") // Escape double quotes in the message
                     );
 
-                    webSocketHandler.broadcastToLobby(lobby, jsonMessage);
-
+                    webSocketHandler.sendToPlayer(playerEntry.getKey(), jsonMessage);
                 }
             }
+
+            resetReadyPlayers();
+            while(!allPlayersReady())
+            {
+                // Wait for a message from the sockets representing the players in this game.
+                // each time you get a message put that player in ready players
+                try
+                {
+                    Thread.sleep(100);
+                }
+                catch (InterruptedException e)
+                {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+
+            webSocketHandler.broadcastToLobby(lobby, "{\"type\": \"ROUND_COMPLETED\", \"round\": " + round + "}");
         }
+    }
+
+    public void markRoundReady(String player)
+    {
+        readyPlayers.add(player);
+    }
+
+    private void resetReadyPlayers()
+    {
+        readyPlayers.clear();
+    }
+
+    public boolean allPlayersReady()
+    {
+        for(Map.Entry<String, Player> playerEntry : players.entrySet())
+        {
+            if(!readyPlayers.contains(playerEntry.getKey()))
+            {
+                return false;
+            }
+        }
+        return true;
     }
 }

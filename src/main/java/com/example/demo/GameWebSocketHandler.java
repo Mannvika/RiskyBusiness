@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class GameWebSocketHandler extends TextWebSocketHandler {
 
-    private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    public final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final GameService gameService;
 
     public GameWebSocketHandler(GameService gameService) {
@@ -52,13 +52,21 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 if (gameService.areAllPlayersReady(lobbyId))
                 {
                     broadcastToLobby(lobby, "{\"type\": \"GAME_STARTING\"}");
-                    GameLogic gameLogic = new GameLogic(lobby, this);
-                    gameLogic.startGame();
+                    gameService.startGame(lobbyId, this);
                 }
                 else
                 {
                     broadcastToLobby(lobby, "{\"type\": \"WAITING\"}");
                 }
+            }
+        }
+        else if ("ROUND_READY".equals(type)) {
+            Lobby lobby = gameService.getLobby(lobbyId);
+            GameLogic gameLogic = gameService.getGameLogic(lobbyId);
+
+            if (gameLogic != null) {
+                gameLogic.markRoundReady(playerId);
+                System.out.println("Player " + playerId + " is ready for the next round.");
             }
         }
     }
@@ -84,14 +92,23 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
     public void broadcastToLobby(Lobby lobby, String message) {
         lobby.getPlayers().forEach(playerId -> {
-            WebSocketSession session = sessions.get(playerId);
-            if (session != null && session.isOpen()) {
-                try {
-                    session.sendMessage(new TextMessage(message));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
+            sendToPlayer(playerId, message);
         });
+    }
+
+    public void sendToPlayer(String playerId, String message)
+    {
+        WebSocketSession session = sessions.get(playerId);
+        if (session != null && session.isOpen())
+        {
+            try
+            {
+                session.sendMessage(new TextMessage(message));
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+        }
     }
 }

@@ -30,9 +30,23 @@ function Game() {
       };
   }, [lobbyId, socket]);
 
+  const endTurn = () =>
+  {
+    if(!socket){return;}
+
+    if(socket.readyState === WebSocket.OPEN)
+    {
+      socket.send(JSON.stringify({type: "ROUND_READY", lobbyId: lobbyId}));
+    }
+    else
+    {
+      console.error("WebSocket is not open");
+    }
+  }
+
   return (
     <div>
-      <button>Test</button>
+      <button onClick={endTurn}>Test</button>
     </div>
   );
 }
