@@ -12,81 +12,156 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
     public final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final GameService gameService;
+    private final LobbyService lobbyService;
 
-    public GameWebSocketHandler(GameService gameService) {
+    public GameWebSocketHandler(LobbyService lobbyService, GameService gameService) {
         this.gameService = gameService;
+        this.lobbyService = lobbyService;
+    }
+
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        String sessionId = session.getId();
+        System.out.println("=== Detailed Message Info ===");
+        System.out.println("Session ID: " + sessionId);
+        System.out.println("Message: " + message.getPayload());
+        System.out.println("Current Sessions: " + sessions.keySet());
+        System.out.println("==========================");
+
+        String payload = message.getPayload();
+        Map<String, String> parsedMessage = parseMessage(payload);
+
+        String type = parsedMessage.get("type");
+        String playerName = parsedMessage.get("playerName");
+        String lobbyId = parsedMessage.get("lobbyId");
+        String playerId = sessionId;
+
+        if ("CREATE_LOBBY".equals(type)) {
+            try {
+                String newLobbyId = lobbyService.createLobby();
+                gameService.createLobby(newLobbyId);
+
+                String response = String.format(
+                        "{\"type\":\"LOBBY_CREATED\",\"lobbyId\":\"%s\",\"playerName\":\"%s\"}",
+                        newLobbyId,
+                        playerName
+                );
+
+                sendToPlayer(playerId, response);
+            } catch (Exception e) {
+                sendToPlayer(playerId, "{\"type\":\"ERROR\",\"message\":\"Failed to create lobby\"}");
+                e.printStackTrace();
+            }
+        }
+        else if ("JOIN_LOBBY".equals(type)) {
+            try {
+                Lobby lobby = gameService.getLobby(lobbyId);
+                lobby.addPlayer(playerId);
+                System.out.println("Player " + playerId + " joined lobby " + lobbyId);
+
+                String response = String.format(
+                        "{\"type\":\"LOBBY_JOINED\",\"lobbyId\":\"%s\",\"playerId\":\"%s\",\"playerName\":\"%s\"}",
+                        lobbyId,
+                        playerId,
+                        playerName
+                );
+
+                sendToPlayer(playerId, response);
+            } catch (Exception e) {
+                sendToPlayer(playerId, "{\"type\":\"ERROR\",\"message\":\"Failed to join lobby\"}");
+                e.printStackTrace();
+            }
+        }
+        else if ("READY".equals(type)) {
+            try {
+                gameService.markPlayerReady(lobbyId, playerId);
+                Lobby lobby = gameService.getLobby(lobbyId);
+
+                if(lobby == null) {System.out.println("lobby is null");}
+
+                if (lobby != null && gameService.areAllPlayersReady(lobbyId)) {
+                    System.out.println("All players ready in lobby " + lobbyId);
+                    System.out.println("Active sessions before game start: " + sessions.keySet());
+
+                    String gameStartingResponse = "{\"type\":\"GAME_STARTING\",\"lobbyId\":\"" + lobbyId + "\"}";
+                    broadcastToLobby(lobby, gameStartingResponse);
+                    gameService.startGame(lobbyId, this);
+                }
+                else
+                {
+                    String response = String.format(
+                            "{\"type\":\"PLAYER_READY\",\"lobbyId\":\"%s\",\"playerId\":\"%s\"}",
+                            lobbyId,
+                            playerId
+                    );
+                    sendToPlayer(playerId, response);
+                }
+            } catch (Exception e) {
+                sendToPlayer(playerId, "{\"type\":\"ERROR\",\"message\":\"Failed to mark player ready\"}");
+                e.printStackTrace();
+            }
+        }
+        else if ("ROUND_READY".equals(type)) {
+            try {
+                System.out.println("ROUND_READY from session " + sessionId);
+                System.out.println("Current lobby state: " + gameService.getLobby(lobbyId).getPlayers());
+
+                GameLogic gameLogic = gameService.getGameLogic(lobbyId);
+                if (gameLogic != null) {
+                    gameLogic.markRoundReady(playerId);
+
+                    String response = String.format(
+                            "{\"type\":\"ROUND_READY_CONFIRMED\",\"lobbyId\":\"%s\",\"playerId\":\"%s\"}",
+                            lobbyId,
+                            playerId
+                    );
+
+                    sendToPlayer(playerId, response);
+                } else {
+                    System.out.println("Warning: No GameLogic found for lobby " + lobbyId);
+                    sendToPlayer(playerId, "{\"type\":\"ERROR\",\"message\":\"Game logic not found\"}");
+                }
+            } catch (Exception e) {
+                sendToPlayer(playerId, "{\"type\":\"ERROR\",\"message\":\"Failed to process round ready\"}");
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         sessions.put(session.getId(), session);
-        System.out.println("Connected: " + session.getId());
-    }
-
-    @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        String payload = message.getPayload();
-        Map<String, String> parsedMessage = parseMessage(payload);
-
-        String type = parsedMessage.get("type");
-        String lobbyId = parsedMessage.get("lobbyId");
-        String playerId = session.getId();
-
-        System.out.println("Received: " + type + " " + lobbyId + " " + playerId);
-
-        if ("JOIN_LOBBY".equals(type))
-        {
-            Lobby lobby = gameService.getLobby(lobbyId);
-            if (lobby == null)
-            {
-                lobby = gameService.createLobby(lobbyId);
-            }
-            lobby.addPlayer(playerId);
-        }
-        else if ("READY".equals(type))
-        {
-            gameService.markPlayerReady(lobbyId, playerId);
-            Lobby lobby = gameService.getLobby(lobbyId);
-            if (lobby != null)
-            {
-                if (gameService.areAllPlayersReady(lobbyId))
-                {
-                    broadcastToLobby(lobby, "{\"type\": \"GAME_STARTING\"}");
-                    gameService.startGame(lobbyId, this);
-                }
-                else
-                {
-                    broadcastToLobby(lobby, "{\"type\": \"WAITING\"}");
-                }
-            }
-        }
-        else if ("ROUND_READY".equals(type)) {
-            Lobby lobby = gameService.getLobby(lobbyId);
-            GameLogic gameLogic = gameService.getGameLogic(lobbyId);
-
-            if (gameLogic != null) {
-                gameLogic.markRoundReady(playerId);
-                System.out.println("Player " + playerId + " is ready for the next round.");
-            }
-        }
+        System.out.println("New connection established: " + session.getId());
+        System.out.println("Current active sessions: " + sessions.keySet());
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-        sessions.remove(session.getId());
-        System.out.println("Disconnected: " + session.getId());
+        String sessionId = session.getId();
+        sessions.remove(sessionId);
+        System.out.println("Connection closed: " + sessionId);
+        System.out.println("Remaining sessions: " + sessions.keySet());
     }
 
     private Map<String, String> parseMessage(String payload) {
         Map<String, String> result = new ConcurrentHashMap<>();
-        String[] pairs = payload.replaceAll("[{}\"]", "").split(",");
+
+        // Remove the curly braces and quotes
+        payload = payload.replaceAll("[{}\"]", "");
+
+        // Split into key-value pairs
+        String[] pairs = payload.split(",");
 
         for (String pair : pairs) {
+            // Split each pair into key and value
             String[] keyValue = pair.split(":");
             if (keyValue.length == 2) {
-                result.put(keyValue[0].trim(), keyValue[1].trim());
+                String key = keyValue[0].trim();
+                String value = keyValue[1].trim();
+                result.put(key, value);
             }
         }
+
         return result;
     }
 
@@ -96,17 +171,17 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         });
     }
 
-    public void sendToPlayer(String playerId, String message)
-    {
+    public void sendToPlayer(String playerId, String message) {
+        if (message == null) {
+            System.err.println("Attempted to send null message to player: " + playerId);
+            return;
+        }
+
         WebSocketSession session = sessions.get(playerId);
-        if (session != null && session.isOpen())
-        {
-            try
-            {
+        if (session != null && session.isOpen()) {
+            try {
                 session.sendMessage(new TextMessage(message));
-            }
-            catch (Exception e)
-            {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }

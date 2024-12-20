@@ -42,6 +42,7 @@ public class GameService {
         Lobby lobby = lobbies.get(lobbyId);
         if (lobby != null) {
             lobby.markPlayerReady(playerId);
+            System.out.println("Player " + playerId + " has readied " + lobbyId);
         }
     }
 

@@ -10,14 +10,16 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 public class WebSocketConfig implements WebSocketConfigurer {
 
     private final GameService gameService;
+    private final LobbyService lobbyService;
 
-    public WebSocketConfig(GameService gameService) {
+    public WebSocketConfig(LobbyService lobbyService, GameService gameService) {
         this.gameService = gameService;
+        this.lobbyService = lobbyService;
     }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(new GameWebSocketHandler(gameService), "/game")
+        registry.addHandler(new GameWebSocketHandler(lobbyService, gameService), "/game")
                 .setAllowedOrigins("*");
     }
 }

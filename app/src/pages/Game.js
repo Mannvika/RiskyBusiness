@@ -1,53 +1,61 @@
-import React, {useEffect} from 'react';
-
-import {useNavigate, useParams} from "react-router-dom";
-import {useWebSocket} from "../WebSocketContext";
+import React, { useEffect, useState } from 'react';
+import { useParams } from "react-router-dom";
+import { useWebSocket } from "../WebSocketContext";
 
 function Game() {
-
-  const {lobbyId} = useParams();
-  const socketRef = useWebSocket();
-  const socket = socketRef.current;
+  const { lobbyId } = useParams();
+  const { socket, markRoundReady } = useWebSocket();
+  const [debugInfo, setDebugInfo] = useState({
+    readyAttempts: 0,
+    lastAttemptTime: null,
+    socketState: "initializing"
+  });
 
   useEffect(() => {
-    const handleSocketMessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        console.log("Received WebSocket message:", message);
-
-        if (message.type === "message" && message.lobbyId === lobbyId) {
-          console.log("Lobby Message:", message.message);
-        }
-      } catch (e) {
-        console.error("Error parsing WebSocket message:", e, "Received data:", event.data);
-      }
+    const handleOpen = () => {
+      setDebugInfo(prev => ({...prev, socketState: "connected"}));
     };
-      socket.addEventListener("message", handleSocketMessage);
 
-      // Cleanup the event listener on unmount
+    const handleClose = () => {
+      setDebugInfo(prev => ({...prev, socketState: "disconnected"}));
+    };
+
+    if (socket.current) {
+      socket.current.addEventListener('open', handleOpen);
+      socket.current.addEventListener('close', handleClose);
+
       return () => {
-        socket.removeEventListener("message", handleSocketMessage);
+        socket.current?.removeEventListener('open', handleOpen);
+        socket.current?.removeEventListener('close', handleClose);
       };
-  }, [lobbyId, socket]);
-
-  const endTurn = () =>
-  {
-    if(!socket){return;}
-
-    if(socket.readyState === WebSocket.OPEN)
-    {
-      socket.send(JSON.stringify({type: "ROUND_READY", lobbyId: lobbyId}));
     }
-    else
-    {
-      console.error("WebSocket is not open");
-    }
-  }
+  }, [socket]);
+
+  const endTurn = () => {
+    setDebugInfo(prev => ({
+      ...prev,
+      readyAttempts: prev.readyAttempts + 1,
+      lastAttemptTime: new Date().toISOString()
+    }));
+
+    markRoundReady(lobbyId);
+  };
 
   return (
-    <div>
-      <button onClick={endTurn}>Test</button>
-    </div>
+      <div>
+        <div>
+          <h2>Debug Information</h2>
+          <pre>
+                    {JSON.stringify({
+                      socketState: debugInfo.socketState,
+                      readyAttempts: debugInfo.readyAttempts,
+                      lastAttempt: debugInfo.lastAttemptTime,
+                      socketReadyState: socket?.readyState
+                    }, null, 2)}
+                </pre>
+        </div>
+        <button onClick={endTurn}>Test</button>
+      </div>
   );
 }
 

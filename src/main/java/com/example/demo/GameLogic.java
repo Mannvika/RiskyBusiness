@@ -17,40 +17,59 @@ public class GameLogic
     // Also use it to s
 
     Map<String, Player> players;
-    Set<String> readyPlayers = new HashSet<>();
+    private final Map<String, Boolean> readyPlayers = new ConcurrentHashMap<>();
     Lobby lobby;
     GameWebSocketHandler webSocketHandler;
+    private final Set<String> expectedPlayers;
     private final int NUM_ROUNDS = 10;
-    public GameLogic(Lobby lobby, GameWebSocketHandler webSocketHandler)
-    {
+
+    public GameLogic(Lobby lobby, GameWebSocketHandler webSocketHandler) {
         this.lobby = lobby;
-        players = new ConcurrentHashMap<>();
-        for(String player : lobby.getPlayers())
-        {
+        this.webSocketHandler = webSocketHandler;
+        this.players = new ConcurrentHashMap<>();
+        this.expectedPlayers = new HashSet<>(lobby.getPlayers());
+        for(String player : lobby.getPlayers()) {
             players.put(player, new Player());
         }
-        this.webSocketHandler = webSocketHandler;
     }
 
+    public synchronized void markRoundReady(String player) {
+        System.out.println("Marking player " + player + " as ready for round");
+        readyPlayers.put(player, true);
+        System.out.println("Current ready players: " + readyPlayers.size() + "/" + expectedPlayers.size());
+    }
 
-    public void startGame()
-    {
+    public synchronized boolean allPlayersReady() {
+        boolean allReady = expectedPlayers.size() == readyPlayers.size() &&
+                expectedPlayers.containsAll(readyPlayers.keySet());
+        System.out.println("Checking if all players ready: " + allReady +
+                " (Ready: " + readyPlayers.size() +
+                ", Expected: " + expectedPlayers.size() + ")");
+        return allReady;
+    }
+
+    private synchronized void resetReadyPlayers() {
+        readyPlayers.clear();
+        System.out.println("Ready players have been reset. Expecting " + expectedPlayers.size() + " players");
+    }
+
+    public void startGame() {
+        System.out.println("Starting game with " + expectedPlayers.size() + " players");
         ArrayList<String> testList = new ArrayList<String>();
         testList.add("Card 1");
         testList.add("Card 2");
         testList.add("Card 3");
-        for(int round = 0; round < NUM_ROUNDS; round++)
-        {
-            if(round % 2 == 0)
-            {
-                for(Map.Entry<String, Player> playerEntry : players.entrySet())
-                {
+
+        for(int round = 0; round < NUM_ROUNDS; round++) {
+            System.out.println("Starting round " + round);
+            if(round % 2 == 0) {
+                for(Map.Entry<String, Player> playerEntry : players.entrySet()) {
                     String chosenCard = playerEntry.getValue().chooseCard(testList);
                     String message = playerEntry.getKey() + " chosen card: " + chosenCard;
                     String jsonMessage = String.format(
                             "{\"type\": \"message\", \"lobbyId\": \"%s\", \"message\": \"%s\"}",
                             lobby.getId(),
-                            message.replace("\"", "\\\"") // Escape double quotes in the message
+                            message.replace("\"", "\\\"")
                     );
 
                     webSocketHandler.sendToPlayer(playerEntry.getKey(), jsonMessage);
@@ -58,44 +77,26 @@ public class GameLogic
             }
 
             resetReadyPlayers();
-            while(!allPlayersReady())
-            {
-                // Wait for a message from the sockets representing the players in this game.
-                // each time you get a message put that player in ready players
-                try
-                {
-                    Thread.sleep(100);
+
+            // Wait for all players to be ready with a timeout
+            long startTime = System.currentTimeMillis();
+            while(!allPlayersReady()) {
+                if (System.currentTimeMillis() - startTime > 30000) { // 30 second timeout
+                    System.out.println("Timeout waiting for players to be ready");
+                    break;
                 }
-                catch (InterruptedException e)
-                {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
                 }
             }
 
-            webSocketHandler.broadcastToLobby(lobby, "{\"type\": \"ROUND_COMPLETED\", \"round\": " + round + "}");
-        }
-    }
-
-    public void markRoundReady(String player)
-    {
-        readyPlayers.add(player);
-    }
-
-    private void resetReadyPlayers()
-    {
-        readyPlayers.clear();
-    }
-
-    public boolean allPlayersReady()
-    {
-        for(Map.Entry<String, Player> playerEntry : players.entrySet())
-        {
-            if(!readyPlayers.contains(playerEntry.getKey()))
-            {
-                return false;
+            if (allPlayersReady()) {
+                System.out.println("All players ready, proceeding to next round");
+                webSocketHandler.broadcastToLobby(lobby, "{\"type\": \"ROUND_COMPLETED\", \"round\": " + round + "}");
             }
         }
-        return true;
     }
 }

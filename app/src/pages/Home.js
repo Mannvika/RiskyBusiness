@@ -1,103 +1,77 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useWebSocket } from '../WebSocketContext'; // Import the custom hook
+import { useWebSocket, WS_MESSAGE_TYPES } from '../WebSocketContext';
 
 function Home() {
   const [name, setName] = useState('');
   const [inputLobbyId, setInputLobbyId] = useState('');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
-  const socketRef = useWebSocket(); // Use the custom hook to get the WebSocket reference
+  const { createLobby, joinLobby, registerHandler } = useWebSocket();
 
-  const createLobby = async () => {
-    try {
-      const response = await fetch('http://localhost:8080/lobby/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerName: name }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to create lobby: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const lobbyId = data.lobbyId;
-
-      console.log('Lobby created:', lobbyId);
-
-      if (lobbyId) {
-        const payload = { playerName: name };
-
-        const joinResponse = await fetch(`http://localhost:8080/lobby/join/${lobbyId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (joinResponse.ok) {
-          console.log('Successfully added to the lobby.');
-          // Inform the server via WebSocket
-          const socket = socketRef.current; // Access the WebSocket instance
-          if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(
-                JSON.stringify({ type: 'JOIN_LOBBY', lobbyId: lobbyId, playerName: name })
-            );
-          }
-          navigate(`/lobby/${lobbyId}`);
-        } else {
-          console.error('Failed to join the lobby.');
+  useEffect(() => {
+    // Handle lobby creation response
+    const unregisterLobbyCreated = registerHandler(WS_MESSAGE_TYPES.LOBBY_CREATED,
+        (data) => {
+          console.log('Lobby created:', data.lobbyId);
         }
-    }} catch (err) {
-      console.error('Error:', err.message);
+    );
+
+    // Handle lobby join response
+    const unregisterLobbyJoined = registerHandler(WS_MESSAGE_TYPES.LOBBY_JOINED,
+        (data) => {
+          console.log('Successfully joined lobby:', data.lobbyId);
+          navigate(`/lobby/${data.lobbyId}`);
+        }
+    );
+
+    // Handle errors
+    const unregisterError = registerHandler(WS_MESSAGE_TYPES.ERROR,
+        (data) => {
+          setError(data.message);
+          console.error('Server error:', data.message);
+        }
+    );
+
+    return () => {
+      unregisterLobbyCreated();
+      unregisterLobbyJoined();
+      unregisterError();
+    };
+  }, [navigate]);
+
+  const handleCreateLobby = () => {
+    if (!name) {
+      setError('Please enter your name');
+      return;
     }
+    setError('');
+    createLobby(name);
   };
 
-  const joinLobby = async () => {
-    try {
-      const lobbyIdStr = inputLobbyId.trim();
+  const handleJoinLobby = () => {
+    const lobbyIdStr = inputLobbyId.trim();
 
-      if (!lobbyIdStr) {
-        console.error('Please enter a valid lobby ID.');
-        return;
-      }
-
-      if (!name) {
-        console.error('Player name is required to join the lobby.');
-        return;
-      }
-
-      const payload = { playerName: name };
-
-      const response = await fetch(`http://localhost:8080/lobby/join/${lobbyIdStr}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        console.log('Successfully added to the lobby.');
-        // Inform the server via WebSocket
-        const socket = socketRef.current; // Access the WebSocket instance
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(
-              JSON.stringify({ type: 'JOIN_LOBBY', lobbyId: lobbyIdStr, playerName: name })
-          );
-        }
-        navigate(`/lobby/${lobbyIdStr}`);
-      } else {
-        console.error('Failed to join the lobby.');
-      }
-    } catch (err) {
-      console.error('Failed to join the lobby:', err);
+    if (!lobbyIdStr) {
+      setError('Please enter a valid lobby ID');
+      return;
     }
+
+    if (!name) {
+      setError('Please enter your name');
+      return;
+    }
+
+    setError('');
+    joinLobby(lobbyIdStr, name);
   };
 
   return (
       <div>
         <h1>Welcome to the Game</h1>
-        <form>
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+
+        <form onSubmit={e => e.preventDefault()}>
           <label>
             Your Name:
             <input
@@ -111,7 +85,7 @@ function Home() {
         </form>
 
         <div style={{ marginTop: '20px' }}>
-          <button onClick={createLobby}>Create Lobby</button>
+          <button onClick={handleCreateLobby}>Create Lobby</button>
         </div>
 
         <div style={{ marginTop: '20px' }}>
@@ -124,7 +98,7 @@ function Home() {
                 onChange={(e) => setInputLobbyId(e.target.value)}
             />
           </label>
-          <button onClick={joinLobby} style={{ marginLeft: '10px' }}>
+          <button onClick={handleJoinLobby} style={{ marginLeft: '10px' }}>
             Join Lobby
           </button>
         </div>
