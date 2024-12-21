@@ -14,6 +14,7 @@ function Home() {
     const unregisterLobbyCreated = registerHandler(WS_MESSAGE_TYPES.LOBBY_CREATED,
         (data) => {
           console.log('Lobby created:', data.lobbyId);
+          joinLobby(data.lobbyId, name)
         }
     );
 
