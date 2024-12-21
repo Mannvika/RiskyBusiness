@@ -9,7 +9,10 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
 
 public class GameLogic
 {
@@ -21,7 +24,7 @@ public class GameLogic
     Lobby lobby;
     GameWebSocketHandler webSocketHandler;
     private final Set<String> expectedPlayers;
-    private final int NUM_ROUNDS = 10;
+    private final int NUM_ROUNDS = 2;
 
     public GameLogic(Lobby lobby, GameWebSocketHandler webSocketHandler) {
         this.lobby = lobby;
@@ -55,48 +58,46 @@ public class GameLogic
 
     public void startGame() {
         System.out.println("Starting game with " + expectedPlayers.size() + " players");
-        ArrayList<String> testList = new ArrayList<String>();
+        ArrayList<String> testList = new ArrayList<>();
         testList.add("Card 1");
         testList.add("Card 2");
         testList.add("Card 3");
 
-        for(int round = 0; round < NUM_ROUNDS; round++) {
-            System.out.println("Starting round " + round);
-            if(round % 2 == 0) {
-                for(Map.Entry<String, Player> playerEntry : players.entrySet()) {
-                    String chosenCard = playerEntry.getValue().chooseCard(testList);
-                    String message = playerEntry.getKey() + " chosen card: " + chosenCard;
+        for (int round = 0; round < NUM_ROUNDS; round++) {
+            int currentRound = round; // Make round effectively final for lambda
+            System.out.println("Starting round " + currentRound);
+
+            if (currentRound % 2 == 0) {
+                players.forEach((playerId, player) -> {
+                    String chosenCard = player.chooseCard(testList);
+                    String message = playerId + " chosen card: " + chosenCard;
                     String jsonMessage = String.format(
                             "{\"type\": \"message\", \"lobbyId\": \"%s\", \"message\": \"%s\"}",
                             lobby.getId(),
                             message.replace("\"", "\\\"")
                     );
 
-                    webSocketHandler.sendToPlayer(playerEntry.getKey(), jsonMessage);
-                }
+                    webSocketHandler.sendToPlayer(playerId, jsonMessage);
+                });
             }
 
-            resetReadyPlayers();
-
-            // Wait for all players to be ready with a timeout
-            long startTime = System.currentTimeMillis();
-            while(!allPlayersReady()) {
-                if (System.currentTimeMillis() - startTime > 30000) { // 30 second timeout
-                    System.out.println("Timeout waiting for players to be ready");
-                    break;
+            // Handle waiting asynchronously
+            CompletableFuture.runAsync(() -> {
+                long startTime = System.currentTimeMillis();
+                while (!allPlayersReady()) {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
 
-            if (allPlayersReady()) {
-                System.out.println("All players ready, proceeding to next round");
-                webSocketHandler.broadcastToLobby(lobby, "{\"type\": \"ROUND_COMPLETED\", \"round\": " + round + "}");
-            }
+                if (allPlayersReady()) {
+                    System.out.println("All players ready, proceeding to next round");
+                    webSocketHandler.broadcastToLobby(lobby, "{\"type\": \"ROUND_COMPLETED\", \"round\": " + currentRound + "}");
+                    resetReadyPlayers();
+                }
+            });
         }
     }
 }

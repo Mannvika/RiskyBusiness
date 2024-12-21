@@ -166,24 +166,35 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     }
 
     public void broadcastToLobby(Lobby lobby, String message) {
-        lobby.getPlayers().forEach(playerId -> {
-            sendToPlayer(playerId, message);
-        });
+        if (lobby == null || message == null) {
+            System.err.println("Invalid parameters: lobby or message is null.");
+            return;
+        }
+
+        System.out.println("Broadcasting message to lobby " + message);
+        lobby.getPlayers().forEach(playerId -> sendToPlayer(playerId, message));
     }
 
     public void sendToPlayer(String playerId, String message) {
-        if (message == null) {
-            System.err.println("Attempted to send null message to player: " + playerId);
+        if (playerId == null || message == null) {
+            // Replace with a logging framework
+            System.err.println("Invalid parameters: playerId or message is null.");
             return;
         }
 
         WebSocketSession session = sessions.get(playerId);
+
         if (session != null && session.isOpen()) {
             try {
                 session.sendMessage(new TextMessage(message));
             } catch (Exception e) {
+                // Replace with a logging framework
+                System.err.println("Error sending message to player: " + playerId);
                 e.printStackTrace();
             }
+        } else {
+            // Replace with a logging framework
+            System.err.println("Session is null or closed for player: " + playerId);
         }
     }
 }
