@@ -13,11 +13,17 @@ public class Player
 
     }
 
-    String chooseCard(ArrayList<String> cards)
+    void chooseCard(String card)
     {
-        int rand = (int)(Math.random()*cards.size());
-        hand.add(cards.get(rand));
-        return cards.get(rand);
+        hand.add(card);
+    }
+
+    void printHand()
+    {
+        for(String card : hand)
+        {
+            System.out.println(card);
+        }
     }
 
 

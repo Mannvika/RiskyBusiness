@@ -34,6 +34,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         String type = parsedMessage.get("type");
         String playerName = parsedMessage.get("playerName");
         String lobbyId = parsedMessage.get("lobbyId");
+        String index = parsedMessage.get("cardIndex");
         String playerId = sessionId;
 
         if ("CREATE_LOBBY".equals(type)) {
@@ -124,6 +125,19 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             } catch (Exception e) {
                 sendToPlayer(playerId, "{\"type\":\"ERROR\",\"message\":\"Failed to process round ready\"}");
                 e.printStackTrace();
+            }
+        }
+        else if("CHOOSE_CARD".equals(type))
+        {
+            try
+            {
+                System.out.println("CHOOSE_CARD from session " + sessionId);
+                System.out.println("Current lobby state: " + gameService.getLobby(lobbyId).getPlayers());
+
+                GameLogic gameLogic = gameService.getGameLogic(lobbyId);
+                gameLogic.lastChosenCards.put(playerId, Integer.parseInt(index));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
         }
     }

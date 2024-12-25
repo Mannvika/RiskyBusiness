@@ -9,6 +9,8 @@ export const WS_MESSAGE_TYPES = {
     GAME_STARTING: 'GAME_STARTING',
     LOBBY_CREATED: 'LOBBY_CREATED',
     LOBBY_JOINED: 'LOBBY_JOINED',
+    PICK_CARD: 'PICK_CARD',
+    CHOOSE_CARD: 'CHOOSE_CARD',
     ERROR: 'ERROR'
 };
 
@@ -154,7 +156,9 @@ export const WebSocketProvider = ({ children }) => {
         markReady: (lobbyId) =>
             sendMessage(WS_MESSAGE_TYPES.READY, { lobbyId }),
         markRoundReady: (lobbyId) =>
-            sendMessage(WS_MESSAGE_TYPES.ROUND_READY, { lobbyId })
+            sendMessage(WS_MESSAGE_TYPES.ROUND_READY, { lobbyId }),
+        chooseCard: (lobbyId, cardIndex) =>
+            sendMessage(WS_MESSAGE_TYPES.CHOOSE_CARD, { lobbyId, cardIndex })
     };
 
     return (

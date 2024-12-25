@@ -1,9 +1,7 @@
 package com.example.demo;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import javax.smartcardio.Card;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
@@ -14,8 +12,11 @@ public class GameLogic {
     private final Lobby lobby;
     private final GameWebSocketHandler webSocketHandler;
     private final Set<String> expectedPlayers;
-    private final int NUM_ROUNDS = 2;
+    private final int NUM_ROUNDS = 5;
     private final ExecutorService roundExecutor = Executors.newSingleThreadExecutor();
+
+    private  Map<String, ArrayList<String>> lastGivenCards = new ConcurrentHashMap<>();
+    public  Map<String, Integer> lastChosenCards = new ConcurrentHashMap<>();
 
     public GameLogic(Lobby lobby, GameWebSocketHandler webSocketHandler) {
         this.lobby = lobby;
@@ -25,6 +26,17 @@ public class GameLogic {
         for (String player : lobby.getPlayers()) {
             players.put(player, new Player());
         }
+    }
+
+    public synchronized void chooseCards()
+    {
+        players.forEach((playerId, player) -> {
+            player.chooseCard(lastGivenCards.get(playerId).get(lastChosenCards.get(playerId)));
+            player.printHand();
+        });
+
+        lastGivenCards = new ConcurrentHashMap<>();
+        lastChosenCards = new ConcurrentHashMap<>();
     }
 
     public synchronized void markRoundReady(String player) {
@@ -46,6 +58,7 @@ public class GameLogic {
 
     public void startGame() {
         System.out.println("Starting game with " + expectedPlayers.size() + " players");
+
         ArrayList<String> testList = new ArrayList<>();
         testList.add("Card 1");
         testList.add("Card 2");
@@ -57,14 +70,22 @@ public class GameLogic {
 
                 if (round % 2 == 0) {
                     players.forEach((playerId, player) -> {
-                        String chosenCard = player.chooseCard(testList);
-                        String message = playerId + " chosen card: " + chosenCard;
-                        String jsonMessage = String.format(
-                                "{\"type\": \"message\", \"lobbyId\": \"%s\", \"message\": \"%s\"}",
-                                lobby.getId(),
-                                message.replace("\"", "\\\"")
-                        );
+                        StringBuilder jsonBuilder = new StringBuilder("{");
+                        jsonBuilder.append("\"type\": \"PICK_CARD\",");
+                        jsonBuilder.append("\"lobbyId\": \"").append(lobby.getId()).append("\",");
 
+                        for (int i = 0; i < testList.size(); i++) {
+                            jsonBuilder.append("\"card").append(i + 1).append("\": \"")
+                                    .append(testList.get(i).replace("\"", "\\\"")).append("\"");
+                            if (i < testList.size() - 1) {
+                                jsonBuilder.append(",");
+                            }
+                        }
+
+                        jsonBuilder.append("}");
+
+                        String jsonMessage = jsonBuilder.toString();
+                        lastGivenCards.put(playerId, testList);
                         webSocketHandler.sendToPlayer(playerId, jsonMessage);
                     });
                 }
@@ -82,9 +103,12 @@ public class GameLogic {
                         System.err.println("Thread interrupted while waiting for players");
                         return;
                     }
+                    //System.out.println("Waiting for players to be ready");
                 }
 
                 System.out.println("All players ready, proceeding to next round");
+
+                if(round % 2 == 0) {chooseCards();}
                 webSocketHandler.broadcastToLobby(lobby, "{\"type\": \"ROUND_COMPLETED\", \"round\": " + round + "}");
                 resetReadyPlayers();
             }
