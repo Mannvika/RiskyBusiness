@@ -34,7 +34,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         String type = parsedMessage.get("type");
         String playerName = parsedMessage.get("playerName");
         String lobbyId = parsedMessage.get("lobbyId");
-        String index = parsedMessage.get("cardIndex");
+        String index = parsedMessage.get("index");
         String playerId = sessionId;
 
         if ("CREATE_LOBBY".equals(type)) {
@@ -136,6 +136,33 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
                 GameLogic gameLogic = gameService.getGameLogic(lobbyId);
                 gameLogic.lastChosenCards.put(playerId, Integer.parseInt(index));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        else if("CHOOSE_INVESTMENT".equals(type))
+        {
+            try
+            {
+                System.out.println("CHOOSE_INVESTMENT from session " + sessionId);
+                System.out.println("Current lobby state: " + gameService.getLobby(lobbyId).getPlayers());
+
+                GameLogic gameLogic = gameService.getGameLogic(lobbyId);
+                gameLogic.lastChosenInvestments.put(playerId, Integer.parseInt(index));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        else if("USE_CARD".equals(type))
+        {
+            try
+            {
+                System.out.println("USE_CARD from session " + sessionId);
+                System.out.println("Current lobby state: " + gameService.getLobby(lobbyId).getPlayers());
+
+                GameLogic gameLogic = gameService.getGameLogic(lobbyId);
+                gameLogic.useCard(playerId, Integer.parseInt(index));
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

@@ -5,12 +5,16 @@ export const WS_MESSAGE_TYPES = {
     CREATE_LOBBY: 'CREATE_LOBBY',
     READY: 'READY',
     ROUND_READY: 'ROUND_READY',
+    ROUND_END: 'ROUND_END',
     LOBBY_UPDATE: 'LOBBY_UPDATE',
     GAME_STARTING: 'GAME_STARTING',
     LOBBY_CREATED: 'LOBBY_CREATED',
     LOBBY_JOINED: 'LOBBY_JOINED',
     PICK_CARD: 'PICK_CARD',
     CHOOSE_CARD: 'CHOOSE_CARD',
+    USE_CARD: 'USE_CARD',
+    PICK_INVESTMENT: 'PICK_INVESTMENT',
+    CHOOSE_INVESTMENT: 'CHOOSE_INVESTMENT',
     ERROR: 'ERROR'
 };
 
@@ -157,8 +161,12 @@ export const WebSocketProvider = ({ children }) => {
             sendMessage(WS_MESSAGE_TYPES.READY, { lobbyId }),
         markRoundReady: (lobbyId) =>
             sendMessage(WS_MESSAGE_TYPES.ROUND_READY, { lobbyId }),
-        chooseCard: (lobbyId, cardIndex) =>
-            sendMessage(WS_MESSAGE_TYPES.CHOOSE_CARD, { lobbyId, cardIndex })
+        chooseCard: (lobbyId, index) =>
+            sendMessage(WS_MESSAGE_TYPES.CHOOSE_CARD, { lobbyId, index }),
+        chooseInvestment: (lobbyId, index) =>
+            sendMessage(WS_MESSAGE_TYPES.CHOOSE_INVESTMENT, { lobbyId, index }),
+        activateCard: (lobbyId, index) =>
+            sendMessage(WS_MESSAGE_TYPES.USE_CARD, {lobbyId, index})
     };
 
     return (
