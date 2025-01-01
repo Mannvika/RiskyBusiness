@@ -7,7 +7,7 @@ import java.util.ArrayList;
 public class Player
 {
     ArrayList<Card> hand = new ArrayList<>();
-    ArrayList<String> investments = new ArrayList<>(4);
+    ArrayList<Investment> investments = new ArrayList<>(4);
 
     public int bankedCash = 0;
     public int onHandCash = 1000;
@@ -24,7 +24,7 @@ public class Player
         return hand;
     }
 
-    public ArrayList<String> getInvestments() {
+    public ArrayList<Investment> getInvestments() {
         return investments;
     }
 
@@ -39,7 +39,19 @@ public class Player
         hand.remove(hand.get(index));
     }
 
-    void chooseInvestment(String card){ investments.add(card); }
+    void useInvestments(int round)
+    {
+        for(Investment investment : investments)
+        {
+            investment.executeCallback(round);
+        }
+    }
+
+    void chooseInvestment(Investment investment)
+    {
+        investments.add(investment);
+        investment.setPlayer(this);
+    }
     void bankCash(int cash)
     {
         bankedCash += cash;

@@ -17,7 +17,7 @@ public class GameLogic {
 
     private Map<String, ArrayList<Card>> lastGivenCards = new ConcurrentHashMap<>();
     public Map<String, Integer> lastChosenCards = new ConcurrentHashMap<>();
-    private Map<String, ArrayList<String>> lastGivenInvestments = new ConcurrentHashMap<>();
+    private Map<String, ArrayList<Investment>> lastGivenInvestments = new ConcurrentHashMap<>();
     public Map<String, Integer> lastChosenInvestments = new ConcurrentHashMap<>();
 
     public GameLogic(Lobby lobby, GameWebSocketHandler webSocketHandler) {
@@ -104,9 +104,9 @@ public class GameLogic {
             jsonBuilder.append("],");
             jsonBuilder.append("\"investments\": [");
 
-            List<String> investments = player.getInvestments();
+            List<Investment> investments = player.getInvestments();
             for (int i = 0; i < investments.size(); i++) {
-                jsonBuilder.append("\"").append(investments.get(i).replace("\"", "\\\"")).append("\"");
+                jsonBuilder.append("\"").append(investments.get(i).name.replace("\"", "\\\"")).append("\"");
                 if (i < investments.size() - 1) {
                     jsonBuilder.append(",");
                 }
@@ -121,6 +121,12 @@ public class GameLogic {
         });
     }
 
+    public synchronized void useInvestments(int round)
+    {
+        for (Player player : players.values()) {
+            player.useInvestments(round);
+        }
+    }
 
     public void startGame() {
         System.out.println("Starting game with " + expectedPlayers.size() + " players");
@@ -130,10 +136,37 @@ public class GameLogic {
         testList.add(new Card("Increment by 15%", player -> {player.onHandCash += (int) (player.onHandCash * 0.15);}));
         testList.add(new Card("Subtract by 100",  player -> {player.onHandCash -= 100;}));
 
-        ArrayList<String> testInvestment = new ArrayList<>();
-        testInvestment.add("Inv 1");
-        testInvestment.add("Inv 2");
-        testInvestment.add("Inv 3");
+        ArrayList<Investment> testInvestment = new ArrayList<>();
+        testInvestment.add(new Investment("Late Game", (player, round) -> {
+            if(round < 6)
+            {
+                player.onHandCash += (int) (player.onHandCash * 0.15);
+            }
+            else
+            {
+                player.onHandCash += (int) (player.onHandCash * 0.40);
+            }
+        }));
+        testInvestment.add(new Investment("Mid Game", (player, round) -> {
+            if(round < 4)
+            {
+                player.onHandCash += (int) (player.onHandCash * 0.25);
+            }
+            else
+            {
+                player.onHandCash += (int) (player.onHandCash * 0.375);
+            }
+        }));
+        testInvestment.add(new Investment("Mid Game", (player, round) -> {
+            if(round > 5)
+            {
+                player.onHandCash += (int) (player.onHandCash * 0.20);
+            }
+            else
+            {
+                player.onHandCash += (int) (player.onHandCash * 0.8);
+            }
+        }));
 
         roundExecutor.submit(() -> {
             for (int round = 0; round < NUM_ROUNDS; round++) {
@@ -147,7 +180,7 @@ public class GameLogic {
                         jsonBuilder.append("\"investments\": [");
 
                         for (int i = 0; i < testInvestment.size(); i++) {
-                            jsonBuilder.append("\"").append(testInvestment.get(i).replace("\"", "\\\"")).append("\"");
+                            jsonBuilder.append("\"").append(testInvestment.get(i).name.replace("\"", "\\\"")).append("\"");
                             if (i < testInvestment.size() - 1) {
                                 jsonBuilder.append(",");
                             }
@@ -205,6 +238,7 @@ public class GameLogic {
 
                 if(round == 0 || round == 4) {chooseCards();}
                 if(round == 0 || round == 3 || round == 7) {chooseInvestments();}
+                useInvestments(round);
                 System.out.println("Round " + round);
                 broadcastGameState();
                 resetReadyPlayers();
