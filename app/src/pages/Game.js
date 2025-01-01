@@ -95,9 +95,16 @@ function Game() {
     chooseInvestment(lobbyId, index);
   };
 
-  const handleUseCard = (index) =>{
+  const handleUseCard = (index) => {
+    setHand((prevHand) => {
+      const updatedHand = [...prevHand];
+      updatedHand.splice(index, 1); // Remove the card at the specified index
+      return updatedHand;
+    });
+
     activateCard(lobbyId, index);
-  }
+  };
+
 
   return (
       <div>
