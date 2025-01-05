@@ -19,15 +19,32 @@ public class GameLogic {
     public Map<String, Integer> lastChosenCards = new ConcurrentHashMap<>();
     private Map<String, ArrayList<Investment>> lastGivenInvestments = new ConcurrentHashMap<>();
     public Map<String, Integer> lastChosenInvestments = new ConcurrentHashMap<>();
+    private int round;
+
+    private String roundActionMessage = null;
 
     public GameLogic(Lobby lobby, GameWebSocketHandler webSocketHandler) {
         this.lobby = lobby;
         this.webSocketHandler = webSocketHandler;
         this.players = new ConcurrentHashMap<>();
-        this.expectedPlayers = new HashSet<>(lobby.getPlayers());
-        for (String player : lobby.getPlayers()) {
-            players.put(player, new Player());
+
+        this.expectedPlayers = new HashSet<>(lobby.getPlayers().keySet());
+
+        for (Map.Entry<String, String> entry : lobby.getPlayers().entrySet()) {
+            String playerId = entry.getKey();
+            String playerName = entry.getValue();
+            players.put(playerId, new Player(playerName));
         }
+    }
+
+    public void addToRoundActionMessage(String playerId, String actionName, String extraMessage)
+    {
+        if(roundActionMessage == null)
+        {
+            roundActionMessage = "ROUND: " + (round+1);
+        }
+        roundActionMessage +=  " " + players.get(playerId).name + ": " + actionName + ": " + extraMessage;
+        roundActionMessage += '\n';
     }
 
     public synchronized void chooseCards()
@@ -35,7 +52,9 @@ public class GameLogic {
         players.forEach((playerId, player) -> {
             player.chooseCard(lastGivenCards.get(playerId).get(lastChosenCards.get(playerId)));
             player.printHand();
+            addToRoundActionMessage(playerId, "chose card", "some card");
         });
+
 
         lastGivenCards = new ConcurrentHashMap<>();
         lastChosenCards = new ConcurrentHashMap<>();
@@ -92,6 +111,7 @@ public class GameLogic {
             jsonBuilder.append("\"onHandCash\": ").append(player.getOnHandCash()).append(",");
             jsonBuilder.append("\"bankedCash\": ").append(player.getBankedCash()).append(",");
             jsonBuilder.append("\"investmentMultiplier\": ").append(player.investmentMultiplier).append(",");
+            jsonBuilder.append("\"roundActions\": \"").append(escapeJson(roundActionMessage)).append("\",");
             jsonBuilder.append("\"hand\": [");
 
             List<Card> hand = player.getHand();
@@ -134,7 +154,7 @@ public class GameLogic {
         broadcastGameState();
 
         roundExecutor.submit(() -> {
-            for (int round = 0; round < NUM_ROUNDS; round++) {
+            for (round = 0; round < NUM_ROUNDS; round++) {
                 System.out.println("Starting round " + round);
 
                 if (round == 0 || round == 3 || round == 7) {
@@ -210,7 +230,19 @@ public class GameLogic {
                 System.out.println("Round " + round);
                 broadcastGameState();
                 resetReadyPlayers();
+                roundActionMessage = null;
             }
         });
+    }
+
+    private String escapeJson(String input) {
+        if (input == null) {
+            return "";
+        }
+        return input
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
     }
 }

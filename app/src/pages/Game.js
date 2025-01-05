@@ -14,6 +14,7 @@ function Game() {
   const [investments, setInvestments] = useState([]);
   const [selectedInvestment, setSelectedInvestment] = useState(null);
   const [bankedInvestments, setBankedInvestments] = useState([]);
+  const [roundActionMessages, setRoundActionMessages] = useState([]); // To store all round action messages
 
   const [onHandCash, setOnHandCash] = useState(0);
   const [bankedCash, setBankedCash] = useState(0);
@@ -54,6 +55,13 @@ function Game() {
         setHand(message.hand || []);
         setBankedInvestments(message.investments || []);
         setInvestmentMultiplier(message.investmentMultiplier || []);
+
+        setRoundActionMessages((prev) => [
+          ...prev,
+          message.roundActions ? message.roundActions : "No actions this round",
+        ]);
+
+        console.log(message.roundActions);
       }
     };
 
@@ -165,6 +173,18 @@ function Game() {
                     {card}
                   </button>
               ))
+          )}
+          <h3>Round Action Messages</h3>
+          {roundActionMessages.length === 0 ? (
+              <p>No actions recorded yet.</p>
+          ) : (
+              <ul>
+                {roundActionMessages.map((action, index) => (
+                    <li key={index}>
+                      <strong>Round {index + 1}:</strong> {action}
+                    </li>
+                ))}
+              </ul>
           )}
         </div>
         <div>

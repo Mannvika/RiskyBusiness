@@ -13,9 +13,11 @@ public class Player
     public int onHandCash = 1000;
     public float investmentMultiplier = 1;
 
-    Player()
-    {
+    String name = "";
 
+    Player(String name)
+    {
+        this.name = name;
     }
 
     int getOnHandCash(){return onHandCash;}

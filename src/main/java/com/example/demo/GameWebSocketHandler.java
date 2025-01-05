@@ -57,7 +57,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         else if ("JOIN_LOBBY".equals(type)) {
             try {
                 Lobby lobby = gameService.getLobby(lobbyId);
-                lobby.addPlayer(playerId);
+                lobby.addPlayer(playerId, playerName);
                 System.out.println("Player " + playerId + " joined lobby " + lobbyId);
 
                 String response = String.format(
@@ -213,7 +213,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         }
 
         System.out.println("Broadcasting message to lobby " + message);
-        lobby.getPlayers().forEach(playerId -> sendToPlayer(playerId, message));
+        lobby.getPlayers().forEach((playerId, player) -> {sendToPlayer(playerId, message);});
     }
 
     public void sendToPlayer(String playerId, String message) {
