@@ -14,28 +14,31 @@ public class ChoiceGenerator {
         cards.add(new Card("Reduce by 15%", (player, otherPlayer) -> otherPlayer.onHandCash -= (int) (otherPlayer.onHandCash * 0.15)));
         cards.add(new Card("Increment by 15%", (player, otherPlayer) -> player.onHandCash += (int) (player.onHandCash * 0.15)));
         cards.add(new Card("Subtract by 100", (player, otherPlayer) -> otherPlayer.onHandCash -= 100));
+        cards.add(new Card("Increment multiplier by 50%", (player, otherPlayer) -> player.investmentMultiplier += 0.5f));
+        cards.add(new Card("Reduce multiplier by 25%", (player, otherPlayer) -> otherPlayer.investmentMultiplier -= 0.25f));
+
 
         investments.add(new Investment("Late Game", (player, round) -> {
             if (round < 6) {
-                player.onHandCash += (int) (player.onHandCash * 0.15);
+                player.onHandCash += (int) ((player.onHandCash * 0.15) * player.investmentMultiplier);
             } else {
-                player.onHandCash += (int) (player.onHandCash * 0.40);
+                player.onHandCash += (int) ((player.onHandCash * 0.40) * player.investmentMultiplier);
             }
         }));
 
         investments.add(new Investment("Mid Game", (player, round) -> {
             if (round < 4) {
-                player.onHandCash += (int) (player.onHandCash * 0.25);
+                player.onHandCash += (int) ((player.onHandCash * 0.25) * player.investmentMultiplier);
             } else {
-                player.onHandCash += (int) (player.onHandCash * 0.375);
+                player.onHandCash += (int) ((player.onHandCash * 0.375) * player.investmentMultiplier);
             }
         }));
 
         investments.add(new Investment("Early Game", (player, round) -> {
             if (round > 5) {
-                player.onHandCash += (int) (player.onHandCash * 0.20);
+                player.onHandCash += (int) ((player.onHandCash * 0.20) * player.investmentMultiplier);
             } else {
-                player.onHandCash += (int) (player.onHandCash * 0.8);
+                player.onHandCash += (int) ((player.onHandCash * 0.8) * player.investmentMultiplier);
             }
         }));
     }

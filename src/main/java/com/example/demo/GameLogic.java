@@ -91,6 +91,7 @@ public class GameLogic {
             jsonBuilder.append("\"lobbyId\": \"").append(lobby.getId()).append("\",");
             jsonBuilder.append("\"onHandCash\": ").append(player.getOnHandCash()).append(",");
             jsonBuilder.append("\"bankedCash\": ").append(player.getBankedCash()).append(",");
+            jsonBuilder.append("\"investmentMultiplier\": ").append(player.investmentMultiplier).append(",");
             jsonBuilder.append("\"hand\": [");
 
             List<Card> hand = player.getHand();
@@ -130,6 +131,7 @@ public class GameLogic {
 
     public void startGame() {
         System.out.println("Starting game with " + expectedPlayers.size() + " players");
+        broadcastGameState();
 
         roundExecutor.submit(() -> {
             for (int round = 0; round < NUM_ROUNDS; round++) {

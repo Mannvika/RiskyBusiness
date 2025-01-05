@@ -11,6 +11,7 @@ public class Player
 
     public int bankedCash = 0;
     public int onHandCash = 1000;
+    public float investmentMultiplier = 1;
 
     Player()
     {

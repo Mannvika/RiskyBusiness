@@ -17,6 +17,7 @@ function Game() {
 
   const [onHandCash, setOnHandCash] = useState(0);
   const [bankedCash, setBankedCash] = useState(0);
+  const [investmentMultiplier, setInvestmentMultiplier] = useState(0.0);
   const [debugInfo, setDebugInfo] = useState({
     readyAttempts: 0,
     lastAttemptTime: null,
@@ -52,6 +53,7 @@ function Game() {
         setBankedCash(message.bankedCash || 0);
         setHand(message.hand || []);
         setBankedInvestments(message.investments || []);
+        setInvestmentMultiplier(message.investmentMultiplier || []);
       }
     };
 
@@ -169,20 +171,7 @@ function Game() {
           <h2>Player Information</h2>
           <p>On Hand Cash: ${onHandCash}</p>
           <p>Banked Cash: ${bankedCash}</p>
-        </div>
-        <div>
-          <h2>Debug Information</h2>
-          <pre>
-          {JSON.stringify(
-              {
-                socketState: debugInfo.socketState,
-                readyAttempts: debugInfo.readyAttempts,
-                lastAttempt: debugInfo.lastAttemptTime
-              },
-              null,
-              2
-          )}
-        </pre>
+          <p>Investment Multiplier: {investmentMultiplier}</p>
         </div>
         <button onClick={endTurn}>End Turn</button>
       </div>
