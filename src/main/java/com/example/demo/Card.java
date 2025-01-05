@@ -1,18 +1,18 @@
 package com.example.demo;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 class Card {
     public String name;
-    private final Consumer<Player> callback;
+    private final BiConsumer<Player, Player> callback;
 
-    public Card(String name, Consumer<Player> callback)
+    public Card(String name, BiConsumer<Player, Player> callback)
     {
         this.name = name;
         this.callback = callback;
     }
 
-    public void executeCallback(Player player)
+    public void executeCallback(Player player, Player otherPlayer)
     {
-        callback.accept(player);
+        callback.accept(player, otherPlayer);
     }
 }

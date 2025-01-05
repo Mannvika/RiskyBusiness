@@ -33,9 +33,9 @@ public class Player
         hand.add(card);
     }
 
-    void useCard(int index, Player player)
+    void useCard(int index, Player otherPlayer)
     {
-        hand.get(index).executeCallback(player);
+        hand.get(index).executeCallback(this, otherPlayer);
         hand.remove(hand.get(index));
     }
 

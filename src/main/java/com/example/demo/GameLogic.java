@@ -131,43 +131,6 @@ public class GameLogic {
     public void startGame() {
         System.out.println("Starting game with " + expectedPlayers.size() + " players");
 
-        ArrayList<Card> testList = new ArrayList<>();
-        testList.add(new Card("Reduce by 15%", player -> {player.onHandCash -= (int) (player.onHandCash * 0.15);}));
-        testList.add(new Card("Increment by 15%", player -> {player.onHandCash += (int) (player.onHandCash * 0.15);}));
-        testList.add(new Card("Subtract by 100",  player -> {player.onHandCash -= 100;}));
-
-        ArrayList<Investment> testInvestment = new ArrayList<>();
-        testInvestment.add(new Investment("Late Game", (player, round) -> {
-            if(round < 6)
-            {
-                player.onHandCash += (int) (player.onHandCash * 0.15);
-            }
-            else
-            {
-                player.onHandCash += (int) (player.onHandCash * 0.40);
-            }
-        }));
-        testInvestment.add(new Investment("Mid Game", (player, round) -> {
-            if(round < 4)
-            {
-                player.onHandCash += (int) (player.onHandCash * 0.25);
-            }
-            else
-            {
-                player.onHandCash += (int) (player.onHandCash * 0.375);
-            }
-        }));
-        testInvestment.add(new Investment("Mid Game", (player, round) -> {
-            if(round > 5)
-            {
-                player.onHandCash += (int) (player.onHandCash * 0.20);
-            }
-            else
-            {
-                player.onHandCash += (int) (player.onHandCash * 0.8);
-            }
-        }));
-
         roundExecutor.submit(() -> {
             for (int round = 0; round < NUM_ROUNDS; round++) {
                 System.out.println("Starting round " + round);
@@ -179,9 +142,10 @@ public class GameLogic {
                         jsonBuilder.append("\"lobbyId\": \"").append(lobby.getId()).append("\",");
                         jsonBuilder.append("\"investments\": [");
 
-                        for (int i = 0; i < testInvestment.size(); i++) {
-                            jsonBuilder.append("\"").append(testInvestment.get(i).name.replace("\"", "\\\"")).append("\"");
-                            if (i < testInvestment.size() - 1) {
+                        ArrayList<Investment> investments = ChoiceGenerator.generateUniqueInvestments(3);
+                        for (int i = 0; i < investments.size(); i++) {
+                            jsonBuilder.append("\"").append(investments.get(i).name.replace("\"", "\\\"")).append("\"");
+                            if (i < investments.size() - 1) {
                                 jsonBuilder.append(",");
                             }
                         }
@@ -189,7 +153,7 @@ public class GameLogic {
                         jsonBuilder.append("]}");
 
                         String jsonMessage = jsonBuilder.toString();
-                        lastGivenInvestments.put(playerId, testInvestment);
+                        lastGivenInvestments.put(playerId, investments);
                         webSocketHandler.sendToPlayer(playerId, jsonMessage);
                     });
                 }
@@ -202,9 +166,11 @@ public class GameLogic {
                         jsonBuilder.append("\"lobbyId\": \"").append(lobby.getId()).append("\",");
                         jsonBuilder.append("\"cards\": [");
 
-                        for (int i = 0; i < testList.size(); i++) {
-                            jsonBuilder.append("\"").append(testList.get(i).name.replace("\"", "\\\"")).append("\"");
-                            if (i < testList.size() - 1) {
+                        ArrayList<Card> cards = ChoiceGenerator.generateUniqueCards(3);
+
+                        for (int i = 0; i < cards.size(); i++) {
+                            jsonBuilder.append("\"").append(cards.get(i).name.replace("\"", "\\\"")).append("\"");
+                            if (i < cards.size() - 1) {
                                 jsonBuilder.append(",");
                             }
                         }
@@ -212,7 +178,7 @@ public class GameLogic {
                         jsonBuilder.append("]}");
 
                         String jsonMessage = jsonBuilder.toString();
-                        lastGivenCards.put(playerId, testList);
+                        lastGivenCards.put(playerId, cards);
                         webSocketHandler.sendToPlayer(playerId, jsonMessage);
                     });
                 }
