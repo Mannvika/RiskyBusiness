@@ -36,10 +36,12 @@ public class Player
         hand.add(card);
     }
 
-    void useCard(int index, Player otherPlayer)
+    Card useCard(int index, Player otherPlayer)
     {
-        hand.get(index).executeCallback(this, otherPlayer);
-        hand.remove(hand.get(index));
+        Card card = hand.get(index);
+        card.executeCallback(this, otherPlayer);
+        hand.remove(card);
+        return card;
     }
 
     void useInvestments(int round)

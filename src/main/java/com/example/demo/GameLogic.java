@@ -50,9 +50,10 @@ public class GameLogic {
     public synchronized void chooseCards()
     {
         players.forEach((playerId, player) -> {
-            player.chooseCard(lastGivenCards.get(playerId).get(lastChosenCards.get(playerId)));
+            Card chosenCard = lastGivenCards.get(playerId).get(lastChosenCards.get(playerId));
+            player.chooseCard(chosenCard);
             player.printHand();
-            addToRoundActionMessage(playerId, "chose card", "some card");
+            addToRoundActionMessage(playerId, "chose card", chosenCard.name);
         });
 
 
@@ -71,14 +72,17 @@ public class GameLogic {
                 break;
             }
         }
-        callingPlayer.useCard(index, otherPlayer);
+        Card usedCard = callingPlayer.useCard(index, otherPlayer);
+        addToRoundActionMessage(playerId, "used card", usedCard.name);
     }
 
     public synchronized void chooseInvestments()
     {
         players.forEach((playerId, player) -> {
-            player.chooseInvestment(lastGivenInvestments.get(playerId).get(lastChosenInvestments.get(playerId)));
+            Investment chosenInvestment = lastGivenInvestments.get(playerId).get(lastChosenInvestments.get(playerId));
+            player.chooseInvestment(chosenInvestment);
             player.printHand();
+            addToRoundActionMessage(playerId, "chose investment", chosenInvestment.name);
         });
 
         lastGivenInvestments = new ConcurrentHashMap<>();
@@ -157,6 +161,23 @@ public class GameLogic {
             for (round = 0; round < NUM_ROUNDS; round++) {
                 System.out.println("Starting round " + round);
 
+                if(round == 9)
+                {
+                    Player winningPlayer = null;
+                    int maxCash = -1;
+
+                    for (Player player : players.values()) {
+                        int totalCash = player.getOnHandCash() + player.getBankedCash();
+                        if (totalCash > maxCash) {
+                            maxCash = totalCash;
+                            winningPlayer = player;
+                        }
+                    }
+                    addToRoundActionMessage(winningPlayer.name, "winning player", winningPlayer.name);
+                    broadcastGameState();
+                    break;
+                }
+
                 if (round == 0 || round == 3 || round == 7) {
                     players.forEach((playerId, player) -> {
                         StringBuilder jsonBuilder = new StringBuilder("{");
@@ -205,7 +226,6 @@ public class GameLogic {
                     });
                 }
 
-
                 long startTime = System.currentTimeMillis();
                 while (!allPlayersReady()) {
                     try {
@@ -233,6 +253,7 @@ public class GameLogic {
                 roundActionMessage = null;
             }
         });
+
     }
 
     private String escapeJson(String input) {
